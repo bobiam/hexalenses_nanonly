@@ -46,6 +46,7 @@ void FillLEDsFromPaletteColors( uint8_t colorIndex);
 void ChangePalettePeriodically();
 void pollAndProcess();
 void all_h(byte h);
+void purple_fader();
 
 //initialize palettes
 CRGBPalette16 currentPalette( CRGB::Black);
@@ -59,12 +60,15 @@ CRGB leds[NUM_LEDS];
 
 //our list of patterns
 typedef void (*SimplePatternList[])();
-SimplePatternList gPatterns = { palette_fader, sectionals, unicornSpit, unicornPoo, green_rand, breath, flashlight100, flashlight50, flashlight10, rainbow_cylon, red_rand, off, 
-                                    green_rand, off, blue_rand, off, earth_rand, off, air_rand, off, fire_rand, off, water_rand, off, randy, off, palette_fader, off };
+SimplePatternList gPatterns = { purple_fader, sectionals, unicornSpit, unicornPoo, green_rand, breath, flashlight100, flashlight50, flashlight10, rainbow_cylon, red_rand, 
+                                    green_rand, blue_rand, earth_rand, air_rand, fire_rand, water_rand, randy, palette_fader, off };
 volatile uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
 
-void setup() { 
+static uint8_t lastSecond = 99;
 
+void setup() { 
+  
+  //how was I powered off last?  If it was the reset button, go ahead and increment the pattern and store it in EEPROM.
   switch (MCUSR) {
      case 2: // b00000010
              // Reset button or otherwise some software reset
@@ -85,12 +89,12 @@ void setup() {
 
   FastLED.setMaxPowerInVoltsAndMilliamps(SOURCE_VOLTAGE,SOURCE_CURRENT); 
  
-  leds[0] = CRGB::Green;
   FastLED.setBrightness(current_brightness);
   delay(1); //give the thing time to boot.
-  FastLED.show();
-  
-  delay(1);  //give the human time to see the debug
+
+  //randomize the random.
+  randomSeed(analogRead(0));
+
 }
 
 void loop() { 
@@ -420,6 +424,17 @@ void palette_fader(){
   FastLED.show();
 }
 
+void purple_fader(){
+  ChangePalettePurpally();
+  
+  uint8_t maxChanges = 1; 
+  nblendPaletteTowardPalette( currentPalette, targetPalette, maxChanges);
+
+  startIndex = startIndex + 1; /* motion speed */
+  FillLEDsFromPaletteColors( startIndex);
+  FastLED.show();
+}
+
 
 void FillLEDsFromPaletteColors( uint8_t colorIndex)
 {
@@ -432,10 +447,38 @@ void FillLEDsFromPaletteColors( uint8_t colorIndex)
 }
 
 
+
+void ChangePalettePurpally()
+{
+  uint8_t secondHand = (millis() / 1000) % 60;
+  
+  if( lastSecond != secondHand) {
+    lastSecond = secondHand;
+    CRGB p = CRGB::Purple;
+    CRGB s = CRGB::SlateBlue;
+    CRGB d = CRGB::DarkSlateBlue;
+    CRGB o = CRGB::Black;
+    CRGB r = CRGB::Red;
+    CRGB b = CRGB::Blue;
+    /*
+     * CRGB g = CHSV( HUE_GREEN, 255, 255);
+    CRGB b = CRGB::Black;
+    CRGB w = CRGB::White;
+    */
+
+    if( secondHand == 0)  { targetPalette = CRGBPalette16( p,p,p,p, p,o,p,p, p,p,o,p, p,p,p,p); }    
+    if( secondHand == 10)  { targetPalette = CRGBPalette16( p,r,p,b, p,p,r,p, p,p,b,p, p,b,p,r); }
+    if( secondHand == 20)  { targetPalette = CRGBPalette16( p,o,b,p, b,p,o,b, p,d,o,b, p,o,b,d); }
+    if( secondHand == 30)  { targetPalette = CRGBPalette16( o,o,d,o, o,o,o,o, o,o,o,o, d,o,o,p); }
+    if( secondHand == 40)  { targetPalette = CRGBPalette16( p,b,b,p, b,p,b,b, p,d,p,b, p,p,b,b); }    
+    if( secondHand == 50)  { targetPalette = CRGBPalette16( o,o,d,o, o,o,o,o, o,o,o,o, d,o,o,p); }
+
+  }
+}
+
 void ChangePalettePeriodically()
 {
   uint8_t secondHand = (millis() / 1000) % 60;
-  static uint8_t lastSecond = 99;
   
   if( lastSecond != secondHand) {
     lastSecond = secondHand;
